@@ -80,6 +80,8 @@ export function searchCustomsItems(items: CustomsItem[], query: string): Customs
   return scored.map((entry) => entry.item);
 }
 
+const ARABIC_DIACRITIC_CHAR = /[\u064B-\u065F\u0670\u06D6-\u06ED]/;
+
 export function splitHighlightSegments(
   text: string,
   tokens: string[]
@@ -91,10 +93,10 @@ export function splitHighlightSegments(
   const lowerNormChars: Array<{ origIndex: number; normChar: string }> = [];
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];
-    if (ARABIC_DIACRITICS.test(ch)) continue;
+    if (ARABIC_DIACRITIC_CHAR.test(ch)) continue;
     lowerNormChars.push({
       origIndex: i,
-      normChar: normalizeSearchText(ch),
+      normChar: /\s/.test(ch) ? ' ' : normalizeSearchText(ch),
     });
   }
 

@@ -43,4 +43,11 @@
   .print-only {
     display: block !important;
   }
+  .print-only table {
+    page-break-inside: auto;
+  }
+  .print-only tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
 }

@@ -52,12 +52,38 @@ const HEADER_ALIASES: Record<keyof CustomsItemInput, string[]> = {
   notes: ['ملاحظات إضافية', 'ملاحظات', 'ملاحظة', 'notes', 'remarks'],
 };
 
+function normalizeNumericString(val: string): string {
+  const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
+  return val
+    .replace(/[٠-٩]/g, (d) => String(arabicDigits.indexOf(d)))
+    .replace(/٫/g, '.')
+    .replace(/٬/g, '')
+    .replace(/[^\d.-]/g, '');
+}
+
 function mapExcelRows(rawRows: unknown[][]): CustomsItemInput[] {
   if (rawRows.length === 0) return [];
   const firstRow = rawRows[0].map((c) => String(c ?? '').trim().toLowerCase());
+  const headerKeywords = [
+    'اسم المنتج',
+    'product name',
+    'product',
+    'الصنف',
+    'الماركة',
+    'بلد المنشأ',
+    'الباركود',
+    'البند',
+    'السعر',
+    'العملة',
+    'العبوة',
+    'رقم البيان',
+  ];
+  const headerMatchCount = firstRow.filter((cell) =>
+    headerKeywords.some((kw) => cell === kw || cell.includes(kw))
+  ).length;
   const looksLikeHeader =
-    firstRow.some((cell) => cell.includes('اسم المنتج') || cell.includes('المنتج') || cell.includes('product')) ||
-    firstRow.some((cell) => cell.includes('البند') || cell.includes('السعر') || cell.includes('الباركود'));
+    headerMatchCount >= 2 ||
+    firstRow.some((cell) => cell === 'اسم المنتج' || cell === 'product name');
 
   const dataRows = looksLikeHeader ? rawRows.slice(1) : rawRows;
 
@@ -91,7 +117,7 @@ function mapExcelRows(rawRows: unknown[][]): CustomsItemInput[] {
     .filter((row) => Array.isArray(row) && row.some((cell) => String(cell ?? '').trim() !== ''))
     .map((row) => {
       const getVal = (key: keyof CustomsItemInput) => String(row[colIndexMap[key]] ?? '').trim();
-      const rawPrice = getVal('price').replace(/[^\d.-]/g, '');
+      const rawPrice = normalizeNumericString(getVal('price'));
       return {
         productName: getVal('productName'),
         category: getVal('category'),
@@ -427,14 +453,25 @@ export const ImportModal: React.FC<ImportModalProps> = ({ onClose, onItemsAdded 
                         type={col.key === 'price' ? 'number' : col.key === 'declarationDate' ? 'date' : 'text'}
                         step={col.key === 'price' ? 'any' : undefined}
                         required={col.key === 'productName'}
-                        value={String(manualItem[col.key] ?? '')}
+                        value={
+                          col.key === 'price'
+                            ? manualItem.price === 0
+                              ? ''
+                              : String(manualItem.price)
+                            : String(manualItem[col.key] ?? '')
+                        }
                         onChange={(e) =>
                           setManualItem({
                             ...manualItem,
-                            [col.key]: col.key === 'price' ? Number(e.target.value) : e.target.value,
+                            [col.key]:
+                              col.key === 'price'
+                                ? e.target.value === ''
+                                  ? 0
+                                  : Number(e.target.value)
+                                : e.target.value,
                           })
                         }
-                        placeholder={col.placeholder}
+                        placeholder={col.key === 'price' ? '0.00' : col.placeholder}
                         className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-600/30 focus:border-amber-600 ${
                           col.isNumeric ? 'font-mono-nums' : ''
                         }`}

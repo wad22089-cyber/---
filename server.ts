@@ -7,6 +7,7 @@ import {
   deleteItemsBulk,
   deleteSession,
   deleteUserById,
+  disableUserBiometric,
   findUserByCredentials,
   getSettings,
   getUserBySessionToken,
@@ -70,6 +71,10 @@ async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json({ limit: '25mb' }));
+
+  app.get('/api/health', (_req, res) => {
+    res.json({ ok: true, status: 'ready', timestamp: new Date().toISOString() });
+  });
 
   // Public settings (app name + custom icon)
   app.get('/api/settings', (_req, res) => {
@@ -186,6 +191,15 @@ async function startServer() {
     }
     const token = createSession(user.id);
     res.json({ token, user });
+  });
+
+  app.post('/api/auth/biometric/disable', requireAuth, (req: AuthRequest, res) => {
+    if (!req.user) {
+      res.status(401).json({ error: 'يرجى تسجيل الدخول أولاً' });
+      return;
+    }
+    const updatedUser = disableUserBiometric(req.user.id);
+    res.json({ user: updatedUser });
   });
 
   // User Management (Owner Only)

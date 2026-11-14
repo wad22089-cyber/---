@@ -469,6 +469,14 @@ export function loginWithBiometric(username: string, biometricSecret: string, we
   return mapUser(row);
 }
 
+export function disableUserBiometric(userId: string): User {
+  db.prepare(
+    `UPDATE users SET biometric_enabled = 0, biometric_type = NULL, webauthn_cred_id = NULL, biometric_token_hash = NULL WHERE id = ?`
+  ).run(userId);
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as DbUserRow;
+  return mapUser(row);
+}
+
 export function listAllUsers(): User[] {
   const rows = db.prepare('SELECT * FROM users ORDER BY created_at ASC').all() as DbUserRow[];
   return rows.map(mapUser);

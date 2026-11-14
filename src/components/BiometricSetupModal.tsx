@@ -31,6 +31,12 @@ export const BiometricSetupModal: React.FC<BiometricSetupModalProps> = ({ user, 
   );
 
   useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [cameraActive]);
+
+  useEffect(() => {
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
@@ -44,11 +50,6 @@ export const BiometricSetupModal: React.FC<BiometricSetupModalProps> = ({ user, 
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
       streamRef.current = stream;
       setCameraActive(true);
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      }, 50);
     } catch {
       setError('تعذر الوصول للكاميرا. يمكنك إكمال التفعيل عبر بصمة الجهاز النظامية.');
     }
@@ -107,9 +108,21 @@ export const BiometricSetupModal: React.FC<BiometricSetupModalProps> = ({ user, 
     }
   };
 
-  const handleRemove = () => {
-    removeStoredBiometricProfile(user.username);
-    setStatusMsg('تمت إزالة البصمة المحفوظة من هذا الجهاز.');
+  const handleRemove = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      removeStoredBiometricProfile(user.username);
+      const res = await apiFetch<{ user: User }>('/api/auth/biometric/disable', {
+        method: 'POST',
+      });
+      onUpdated(res.user);
+      setStatusMsg('تمت إزالة البصمة المحفوظة من هذا الجهاز وإلغاء ربطها بالحساب.');
+    } catch {
+      setStatusMsg('تمت إزالة البصمة المحفوظة من هذا الجهاز.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

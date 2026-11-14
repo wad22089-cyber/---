@@ -6,6 +6,7 @@ import {
   ExternalLink,
   FileArchive,
   Globe,
+  ShieldCheck,
   Smartphone,
   X,
 } from 'lucide-react';
@@ -224,6 +225,33 @@ export const ApkDownloadModal: React.FC<ApkDownloadModalProps> = ({ appIcon, onC
                 <span>رابط تنزيل مباشر</span>
               </a>
             </div>
+          </div>
+
+          {/* Educational Section: Enable Install from Unknown Sources */}
+          <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <h5 className="font-display font-semibold text-sm text-slate-900 dark:text-white">
+                تفعيل «التثبيت من مصادر غير معروفة» (Install from unknown sources)
+              </h5>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              عند تثبيت ملف <code className="font-mono">.apk</code> لأول مرة على هاتف أندرويد من خارج متجر Google Play، اتبع الخطوات التالية:
+            </p>
+            <ol className="text-[11px] text-slate-700 dark:text-slate-300 space-y-1.5 list-decimal list-inside leading-relaxed">
+              <li>
+                عند الضغط على ملف <code className="font-mono">.apk</code> ستظهر رسالة تنبيه، اضغط على <strong>«الإعدادات» (Settings)</strong>.
+              </li>
+              <li>
+                فعّل خيار <strong>«السماح من هذا المصدر» (Allow from this source)</strong> لمتصفح Chrome أو تطبيق مدير الملفات (Files).
+              </li>
+              <li>
+                إذا لم تظهر النافذة تلقائياً: افتح <strong>الإعدادات ← التطبيقات ← وصول خاص ← تثبيت تطبيقات غير معروفة</strong> (أو <strong>الأمان ← مصادر غير معروفة</strong> في الإصدارات الأقدم) ثم فعّل الإذن للمتصفح أو مدير الملفات.
+              </li>
+              <li>
+                ارجع خطوة للخلف واضغط <strong>«تثبيت» (Install)</strong> لإتمام تثبيت التطبيق بنجاح (ويمكنك إغلاق الإذن بعد انتهاء التثبيت).
+              </li>
+            </ol>
           </div>
         </div>
 

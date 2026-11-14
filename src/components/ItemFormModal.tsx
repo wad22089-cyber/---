@@ -121,11 +121,23 @@ export const ItemFormModal: React.FC<ItemFormModalProps> = ({ item, onClose, onS
                     type={col.key === 'price' ? 'number' : col.key === 'declarationDate' ? 'date' : 'text'}
                     step={col.key === 'price' ? 'any' : undefined}
                     required={col.key === 'productName'}
-                    value={String(form[col.key] ?? '')}
+                    placeholder={col.key === 'price' ? '0.00' : col.placeholder}
+                    value={
+                      col.key === 'price'
+                        ? form.price === 0
+                          ? ''
+                          : String(form.price)
+                        : String(form[col.key] ?? '')
+                    }
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        [col.key]: col.key === 'price' ? Number(e.target.value) : e.target.value,
+                        [col.key]:
+                          col.key === 'price'
+                            ? e.target.value === ''
+                              ? 0
+                              : Number(e.target.value)
+                            : e.target.value,
                       })
                     }
                     className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-amber-600 ${
