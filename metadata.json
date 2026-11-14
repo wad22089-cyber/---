@@ -1,0 +1,6 @@
+{
+  "name": "نظام القيمة الجمركية - وليد الراشد",
+  "description": "منصة متكاملة لإدارة والبحث الذكي غير المرتب في قاعدة بيانات القيمة الجمركية مع دعم استيراد Excel و PDF والتصدير والذكاء الاصطناعي.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
