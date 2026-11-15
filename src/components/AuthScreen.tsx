@@ -157,27 +157,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-12 bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-dvh w-full max-w-full overflow-x-hidden grid lg:grid-cols-12 bg-slate-50 dark:bg-slate-950">
       {/* Right Column (RTL Start): Auth Form */}
-      <div className="lg:col-span-5 xl:col-span-5 flex flex-col justify-between p-6 sm:p-10 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+      <div className="lg:col-span-5 xl:col-span-5 min-w-0 flex flex-col justify-between p-4 sm:p-8 lg:p-10 bg-white dark:bg-slate-900 lg:border-l border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
             <button
               type="button"
               onClick={onOpenIconCustomizer}
               title="تغيير أيقونة التطبيق"
-              className="group relative w-12 h-12 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-900 focus-visible:outline-2 focus-visible:outline-amber-600"
+              className="group relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 shrink-0 bg-slate-900 focus-visible:outline-2 focus-visible:outline-amber-600"
             >
               <img src={appIcon} alt="أيقونة النظام" className="w-full h-full object-cover" />
               <span className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                 <ImagePlus className="w-4 h-4" />
               </span>
             </button>
-            <div className="min-w-0">
-              <h1 className="font-display text-lg font-bold text-slate-900 dark:text-white truncate">
+            <div className="min-w-0 flex-1">
+              <h1 className="font-display text-sm sm:text-lg font-bold text-slate-900 dark:text-white truncate">
                 نظام القيمة الجمركية - وليد الراشد
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+              <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
                 بوابة التحقق والبحث الجمركي المعتمدة
               </p>
             </div>
@@ -186,10 +186,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           <button
             type="button"
             onClick={onOpenApkModal}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors whitespace-nowrap shrink-0"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>تحميل APK</span>
+            <span>APK</span>
           </button>
         </div>
 

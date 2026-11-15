@@ -126,8 +126,8 @@ export const BiometricSetupModal: React.FC<BiometricSetupModalProps> = ({ user, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-3 sm:p-4">
+      <div className="w-full max-w-lg rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden max-h-[90dvh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             <Shield className="w-5 h-5 text-amber-600" />
@@ -144,7 +144,7 @@ export const BiometricSetupModal: React.FC<BiometricSetupModalProps> = ({ user, 
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1">
           <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
             قم بربط بصمة الإصبع أو التعرف على الوجه بحسابك (<strong className="text-slate-900 dark:text-white">{user.username}</strong>) لتسجيل الدخول بلمسة واحدة بعد تثبيت التطبيق على الهاتف أو الكمبيوتر.
           </p>

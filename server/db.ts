@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -10,9 +10,20 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 const DB_PATH = path.join(DATA_DIR, 'customs.db');
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+const db = new DatabaseSync(DB_PATH);
+db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+
+function runInTransaction<T>(fn: () => T): T {
+  db.exec('BEGIN');
+  try {
+    const result = fn();
+    db.exec('COMMIT');
+    return result;
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -294,8 +305,8 @@ function seedDatabase() {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const tx = db.transaction((items: CustomsItemInput[]) => {
-      for (const item of items) {
+    runInTransaction(() => {
+      for (const item of seedItems) {
         insertItem.run(
           crypto.randomUUID(),
           item.productName,
@@ -317,7 +328,6 @@ function seedDatabase() {
         );
       }
     });
-    tx(seedItems);
   }
 }
 
@@ -438,7 +448,7 @@ export function registerUser(username: string, displayName: string, password: st
     `INSERT INTO users (id, username, display_name, password_hash, role, biometric_enabled, created_at)
      VALUES (?, ?, ?, ?, 'user', 0, ?)`
   ).run(id, clean, displayName.trim() || clean, hashPassword(password), now);
-  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as DbUserRow;
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as unknown as DbUserRow;
   return mapUser(row);
 }
 
@@ -451,7 +461,7 @@ export function saveUserBiometric(
   db.prepare(
     `UPDATE users SET biometric_enabled = 1, biometric_type = ?, webauthn_cred_id = ?, biometric_token_hash = ? WHERE id = ?`
   ).run(biometricType, webauthnCredId, hashToken(biometricSecret), userId);
-  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as DbUserRow;
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as unknown as DbUserRow;
   return mapUser(row);
 }
 
@@ -473,12 +483,12 @@ export function disableUserBiometric(userId: string): User {
   db.prepare(
     `UPDATE users SET biometric_enabled = 0, biometric_type = NULL, webauthn_cred_id = NULL, biometric_token_hash = NULL WHERE id = ?`
   ).run(userId);
-  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as DbUserRow;
+  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as unknown as DbUserRow;
   return mapUser(row);
 }
 
 export function listAllUsers(): User[] {
-  const rows = db.prepare('SELECT * FROM users ORDER BY created_at ASC').all() as DbUserRow[];
+  const rows = db.prepare('SELECT * FROM users ORDER BY created_at ASC').all() as unknown as DbUserRow[];
   return rows.map(mapUser);
 }
 
@@ -507,7 +517,7 @@ export function setSetting(key: string, value: string) {
 }
 
 export function listItems(): CustomsItem[] {
-  const rows = db.prepare('SELECT * FROM customs_items ORDER BY updated_at DESC, created_at DESC').all() as DbItemRow[];
+  const rows = db.prepare('SELECT * FROM customs_items ORDER BY updated_at DESC, created_at DESC').all() as unknown as DbItemRow[];
   return rows.map(mapItem);
 }
 
@@ -522,8 +532,8 @@ export function insertItems(items: CustomsItemInput[], createdBy: string): Custo
   `);
 
   const insertedIds: string[] = [];
-  const tx = db.transaction((list: CustomsItemInput[]) => {
-    for (const item of list) {
+  runInTransaction(() => {
+    for (const item of items) {
       const id = crypto.randomUUID();
       stmt.run(
         id,
@@ -547,9 +557,8 @@ export function insertItems(items: CustomsItemInput[], createdBy: string): Custo
       insertedIds.push(id);
     }
   });
-  tx(items);
 
-  return insertedIds.map((id) => mapItem(db.prepare('SELECT * FROM customs_items WHERE id = ?').get(id) as DbItemRow));
+  return insertedIds.map((id) => mapItem(db.prepare('SELECT * FROM customs_items WHERE id = ?').get(id) as unknown as DbItemRow));
 }
 
 export function updateItem(id: string, data: CustomsItemInput): CustomsItem | null {
@@ -579,25 +588,24 @@ export function updateItem(id: string, data: CustomsItemInput): CustomsItem | nu
       now,
       id
     );
-  if (res.changes === 0) return null;
-  const row = db.prepare('SELECT * FROM customs_items WHERE id = ?').get(id) as DbItemRow;
+  if (Number(res.changes) === 0) return null;
+  const row = db.prepare('SELECT * FROM customs_items WHERE id = ?').get(id) as unknown as DbItemRow;
   return mapItem(row);
 }
 
 export function deleteItem(id: string): boolean {
   const res = db.prepare('DELETE FROM customs_items WHERE id = ?').run(id);
-  return res.changes > 0;
+  return Number(res.changes) > 0;
 }
 
 export function deleteItemsBulk(ids: string[]): number {
   if (ids.length === 0) return 0;
   const stmt = db.prepare('DELETE FROM customs_items WHERE id = ?');
   let count = 0;
-  const tx = db.transaction((list: string[]) => {
-    for (const id of list) {
-      count += stmt.run(id).changes;
+  runInTransaction(() => {
+    for (const id of ids) {
+      count += Number(stmt.run(id).changes);
     }
   });
-  tx(ids);
   return count;
 }

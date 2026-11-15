@@ -1,7 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
+  ArrowUpDown,
   Bot,
+  Check,
   CheckSquare,
+  Copy,
   Download,
   Edit3,
   Eye,
@@ -10,6 +13,7 @@ import {
   Fingerprint,
   Image as ImageIcon,
   ImagePlus,
+  LayoutGrid,
   LogOut,
   Menu,
   Moon,
@@ -21,6 +25,7 @@ import {
   SlidersHorizontal,
   Square,
   Sun,
+  Table2,
   Trash2,
   Users,
   X,
@@ -109,6 +114,9 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [dismissedBiometricPrompt, setDismissedBiometricPrompt] = useState(false);
   const [showAllForOwner, setShowAllForOwner] = useState(false);
+  const [sortBy, setSortBy] = useState<'relevance' | 'price_asc' | 'price_desc' | 'name_asc'>('relevance');
+  const [mobileViewMode, setMobileViewMode] = useState<'cards' | 'table'>('cards');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const exportSheetRef = useRef<HTMLDivElement | null>(null);
   const printSheetRef = useRef<HTMLDivElement | null>(null);
@@ -145,14 +153,47 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
 
   const filteredItems = useMemo(() => {
     if (!hasActiveSearch) return [];
-    const matched = searchCustomsItems(items, searchQuery);
-    return matched.filter((it) => {
+    const matched = searchCustomsItems(items, searchQuery).filter((it) => {
       if (categoryFilter !== 'all' && it.category !== categoryFilter) return false;
       if (originFilter !== 'all' && it.originCountry !== originFilter) return false;
       if (currencyFilter !== 'all' && it.currency !== currencyFilter) return false;
       return true;
     });
-  }, [hasActiveSearch, items, searchQuery, categoryFilter, originFilter, currencyFilter]);
+    if (sortBy === 'price_asc') {
+      return [...matched].sort((a, b) => a.price - b.price);
+    }
+    if (sortBy === 'price_desc') {
+      return [...matched].sort((a, b) => b.price - a.price);
+    }
+    if (sortBy === 'name_asc') {
+      return [...matched].sort((a, b) => a.productName.localeCompare(b.productName, 'ar'));
+    }
+    return matched;
+  }, [hasActiveSearch, items, searchQuery, categoryFilter, originFilter, currencyFilter, sortBy]);
+
+  const priceStats = useMemo(() => {
+    if (filteredItems.length === 0) return null;
+    const primaryCurrency = filteredItems[0].currency || 'USD';
+    const sameCurrencyPrices = filteredItems
+      .filter((it) => (it.currency || 'USD') === primaryCurrency)
+      .map((it) => it.price);
+    const list = sameCurrencyPrices.length > 0 ? sameCurrencyPrices : filteredItems.map((it) => it.price);
+    const min = Math.min(...list);
+    const max = Math.max(...list);
+    const avg = list.reduce((sum, p) => sum + p, 0) / list.length;
+    return { min, max, avg, currency: primaryCurrency };
+  }, [filteredItems]);
+
+  const handleCopyText = async (key: string, text: string) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(key);
+      setTimeout(() => setCopiedField(null), 1600);
+    } catch {
+      // ignore
+    }
+  };
 
   const targetExportItems = useMemo(() => {
     if (selectedIds.size > 0) {
@@ -265,24 +306,24 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 overflow-x-hidden">
-      {/* Top Bar Contract: 3 clean zones (Brand — Nav Links — Primary Action) */}
-      <header className="no-print sticky top-0 z-30 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
+    <div className="min-h-dvh w-full max-w-full flex flex-col bg-slate-50 dark:bg-slate-950 overflow-x-hidden">
+      {/* Top Bar Contract: 3 clean zones (Brand — Nav Links — Primary Action), strictly fitted for mobile & desktop */}
+      <header className="no-print sticky top-0 z-30 w-full bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4 lg:gap-6">
           {/* Zone 1: Single-line Brand Title */}
-          <div className="flex items-center gap-3 min-w-0 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 lg:flex-initial">
             <img
               src={appIcon}
               alt="أيقونة النظام"
-              className="w-9 h-9 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg object-cover border border-slate-200 dark:border-slate-700 shrink-0"
             />
-            <span className="font-display text-base sm:text-lg font-bold text-slate-900 dark:text-white whitespace-nowrap truncate max-w-[220px] sm:max-w-none">
+            <span className="font-display text-sm sm:text-base lg:text-lg font-bold text-slate-900 dark:text-white truncate min-w-0">
               نظام القيمة الجمركية - وليد الراشد
             </span>
           </div>
 
           {/* Zone 2: Concise single-line navigation links */}
-          <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
+          <nav className="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-600 dark:text-slate-300 shrink-0">
             <button
               type="button"
               onClick={() => onOpenAiTools(filteredItems)}
@@ -322,25 +363,27 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
             )}
           </nav>
 
-          {/* Zone 3: 1 Primary Action + Compact Account Controls */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          {/* Zone 3: 1 Primary Action + Always-Visible Logout + Compact Controls */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {isOwner ? (
               <button
                 type="button"
                 onClick={onOpenImportModal}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-slate-900 dark:bg-amber-600 hover:bg-slate-800 dark:hover:bg-amber-700 text-white rounded-lg transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs font-semibold bg-slate-900 dark:bg-amber-600 hover:bg-slate-800 dark:hover:bg-amber-700 text-white rounded-lg transition-colors whitespace-nowrap shrink-0"
               >
-                <Plus className="w-4 h-4" />
-                <span>إضافة / استيراد</span>
+                <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="sm:hidden">إضافة</span>
+                <span className="hidden sm:inline">إضافة / استيراد</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => onOpenAiTools(filteredItems)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-slate-900 dark:bg-amber-600 hover:bg-slate-800 dark:hover:bg-amber-700 text-white rounded-lg transition-colors whitespace-nowrap shrink-0"
+                className="inline-flex items-center gap-1 px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs font-semibold bg-slate-900 dark:bg-amber-600 hover:bg-slate-800 dark:hover:bg-amber-700 text-white rounded-lg transition-colors whitespace-nowrap shrink-0"
               >
-                <Bot className="w-4 h-4" />
-                <span>المساعد الذكي</span>
+                <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="sm:hidden">ذكي</span>
+                <span className="hidden sm:inline">المساعد الذكي</span>
               </button>
             )}
 
@@ -348,7 +391,8 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
               type="button"
               onClick={onToggleDarkMode}
               title={darkMode ? 'الوضع النهاري' : 'الوضع الليلي'}
-              className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              aria-label={darkMode ? 'الوضع النهاري' : 'الوضع الليلي'}
+              className="p-1.5 sm:p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -357,16 +401,16 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
               type="button"
               onClick={onLogout}
               title="تسجيل الخروج"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium text-red-600 dark:text-red-400 bg-red-50/70 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/60 rounded-lg transition-colors whitespace-nowrap shrink-0"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span>خروج</span>
             </button>
 
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="lg:hidden p-1.5 sm:p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0"
               aria-label="القائمة"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -447,12 +491,12 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
       </header>
 
       {/* Main Content Container */}
-      <main className="no-print flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="no-print flex-1 max-w-[1440px] w-full min-w-0 mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Account Context & Quiet Metadata Line (Zero-Pill Rule) */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <span>{user.displayName}</span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+              <span className="font-medium text-slate-700 dark:text-slate-200">{user.displayName}</span>
               <span aria-hidden="true">·</span>
               <span>{isOwner ? 'صلاحية المالك (إدارة كاملة)' : 'صلاحية البحث والتصدير فقط'}</span>
               {isOwner && (
@@ -462,18 +506,18 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
                 </>
               )}
             </div>
-            <h1 className="font-display text-2xl font-bold text-slate-900 dark:text-white mt-1">
+            <h1 className="font-display text-lg sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">
               البحث الذكي في قاعدة بيانات القيمة الجمركية
             </h1>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <button
               type="button"
               onClick={() => onOpenAiTools(filteredItems)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-600 text-slate-700 dark:text-slate-200 rounded-lg font-medium transition-colors whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-600 text-slate-700 dark:text-slate-200 rounded-lg font-medium transition-colors"
             >
-              <Bot className="w-4 h-4 text-amber-600" />
+              <Bot className="w-4 h-4 text-amber-600 shrink-0" />
               <span>تحليل النتائج بالذكاء الاصطناعي</span>
             </button>
           </div>
@@ -574,6 +618,21 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
                 ))}
               </select>
 
+              <div className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200">
+                <ArrowUpDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'relevance' | 'price_asc' | 'price_desc' | 'name_asc')}
+                  aria-label="ترتيب النتائج"
+                  className="bg-transparent focus:outline-none text-xs"
+                >
+                  <option value="relevance">الأكثر مطابقة</option>
+                  <option value="price_asc">السعر: الأقل أولاً</option>
+                  <option value="price_desc">السعر: الأعلى أولاً</option>
+                  <option value="name_asc">اسم المنتج (أ - ي)</option>
+                </select>
+              </div>
+
               {(searchQuery || categoryFilter !== 'all' || originFilter !== 'all' || currencyFilter !== 'all' || showAllForOwner) && (
                 <button
                   type="button"
@@ -610,10 +669,40 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
           </div>
         </section>
 
+        {/* Valuation Statistics Strip (shown when matching items exist) */}
+        {hasActiveSearch && priceStats && (
+          <section className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">إجمالي النتائج</div>
+              <div className="font-mono-nums text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5">
+                {filteredItems.length} <span className="text-xs font-normal text-slate-500">صنف</span>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">متوسط القيمة ({priceStats.currency})</div>
+              <div className="font-mono-nums text-base sm:text-lg font-bold text-amber-700 dark:text-amber-400 mt-0.5">
+                {priceStats.avg.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">أدنى سعر ({priceStats.currency})</div>
+              <div className="font-mono-nums text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">
+                {priceStats.min.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">أعلى سعر ({priceStats.currency})</div>
+              <div className="font-mono-nums text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5">
+                {priceStats.max.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Action & Export Toolbar (shown when search results are visible) */}
         {hasActiveSearch && filteredItems.length > 0 && (
-        <section className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3">
-          {/* Left Side: Selection & Owner Edit/Delete Toggle */}
+        <section className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 sm:px-4 py-3">
+          {/* Left Side: Selection, Mobile View Switch & Owner Edit/Delete Toggle */}
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -623,6 +712,15 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
             >
               {allVisibleSelected ? <CheckSquare className="w-4 h-4 text-amber-600" /> : <Square className="w-4 h-4" />}
               <span>{allVisibleSelected ? 'إلغاء تحديد الكل' : 'تحديد كل النتائج'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMobileViewMode(mobileViewMode === 'cards' ? 'table' : 'cards')}
+              className="md:hidden inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 whitespace-nowrap"
+            >
+              {mobileViewMode === 'cards' ? <Table2 className="w-3.5 h-3.5" /> : <LayoutGrid className="w-3.5 h-3.5" />}
+              <span>{mobileViewMode === 'cards' ? 'عرض الجدول' : 'عرض البطاقات'}</span>
             </button>
 
             {/* Owner-only Edit & Delete visibility toggle (hidden by default in search results!) */}
@@ -793,8 +891,141 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-right border-collapse text-xs">
+            <div className="space-y-3">
+              {/* Mobile Responsive Cards View (zero horizontal clipping on phones) */}
+              {mobileViewMode === 'cards' && (
+                <div className="md:hidden divide-y divide-slate-200 dark:divide-slate-800">
+                  {filteredItems.map((item) => {
+                    const checked = selectedIds.has(item.id);
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-3.5 space-y-2.5 transition-colors ${
+                          checked ? 'bg-amber-50/60 dark:bg-amber-950/20' : ''
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleRow(item.id)}
+                              aria-label={`تحديد ${item.productName}`}
+                              className="mt-1 w-4 h-4 rounded accent-amber-600 cursor-pointer shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug break-words">
+                                <HighlightedText text={item.productName} tokens={searchTokens} />
+                              </h4>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                {item.category && <HighlightedText text={item.category} tokens={searchTokens} />}
+                                {item.category && item.brand && <span aria-hidden="true">·</span>}
+                                {item.brand && <HighlightedText text={item.brand} tokens={searchTokens} />}
+                                {(item.category || item.brand) && item.originCountry && <span aria-hidden="true">·</span>}
+                                {item.originCountry && <HighlightedText text={item.originCountry} tokens={searchTokens} />}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-left shrink-0">
+                            <div className="font-mono-nums text-sm font-bold text-amber-700 dark:text-amber-400">
+                              <HighlightedText
+                                text={item.price.toLocaleString('en-US', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                                tokens={searchTokens}
+                              />{' '}
+                              <span className="text-[11px]">{item.currency}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] bg-slate-50 dark:bg-slate-950 rounded-lg p-2.5 border border-slate-100 dark:border-slate-800">
+                          <div>
+                            <span className="text-slate-400">البند الجمركي: </span>
+                            <span className="font-mono-nums font-semibold text-slate-800 dark:text-slate-200">
+                              <HighlightedText text={item.hsCode} tokens={searchTokens} />
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400">الباركود: </span>
+                            <span className="font-mono-nums text-slate-700 dark:text-slate-300">
+                              <HighlightedText text={item.barcode} tokens={searchTokens} />
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400">القياس/الحجم: </span>
+                            <span className="text-slate-700 dark:text-slate-300">
+                              <HighlightedText text={item.sizeOrMeasure} tokens={searchTokens} />
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400">العبوة: </span>
+                            <span className="text-slate-700 dark:text-slate-300">
+                              <HighlightedText text={item.packageType} tokens={searchTokens} />
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400">رقم البيان: </span>
+                            <span className="font-mono-nums text-slate-700 dark:text-slate-300">
+                              <HighlightedText text={item.declarationNumber} tokens={searchTokens} />
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400">تاريخ البيان: </span>
+                            <span className="font-mono-nums text-slate-700 dark:text-slate-300">
+                              <HighlightedText text={item.declarationDate} tokens={searchTokens} />
+                            </span>
+                          </div>
+                          {item.notes && (
+                            <div className="col-span-2 pt-0.5 text-slate-600 dark:text-slate-400">
+                              <span className="text-slate-400">ملاحظات: </span>
+                              <HighlightedText text={item.notes} tokens={searchTokens} />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setDetailItem(item)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-lg"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>عرض البطاقة الكاملة</span>
+                          </button>
+
+                          {isOwner && showManageActions && (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => onEditItem(item)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 rounded-lg"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>تعديل</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteIds([item.id])}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 rounded-lg"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>حذف</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Full 13-Column Table (Desktop default, or toggleable on mobile) */}
+              <div className={`${mobileViewMode === 'cards' ? 'hidden md:block' : 'block'} overflow-x-auto max-w-full`}>
+                <table className="w-full text-right border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800">
                     <th className="p-3 w-10 text-center">
@@ -923,6 +1154,7 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </section>
@@ -989,20 +1221,40 @@ export const SearchWorkspace: React.FC<SearchWorkspaceProps> = ({
               </div>
 
               <dl className="divide-y divide-slate-100 dark:divide-slate-800 text-sm">
-                {CUSTOMS_COLUMNS.map((col) => (
-                  <div key={col.key} className="py-2.5 flex items-start justify-between gap-4">
-                    <dt className="text-xs text-slate-500 dark:text-slate-400 shrink-0">
-                      {col.index}. {col.label}
-                    </dt>
-                    <dd
-                      className={`text-xs font-medium text-slate-900 dark:text-white text-left ${
-                        col.isNumeric ? 'font-mono-nums' : ''
-                      }`}
-                    >
-                      {String(detailItem[col.key] ?? '') || '—'}
-                    </dd>
-                  </div>
-                ))}
+                {CUSTOMS_COLUMNS.map((col) => {
+                  const val = String(detailItem[col.key] ?? '');
+                  const canCopy = Boolean(val) && (col.key === 'hsCode' || col.key === 'barcode' || col.key === 'declarationNumber');
+                  return (
+                    <div key={col.key} className="py-2.5 flex items-center justify-between gap-4">
+                      <dt className="text-xs text-slate-500 dark:text-slate-400 shrink-0">
+                        {col.index}. {col.label}
+                      </dt>
+                      <dd className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className={`text-xs font-medium text-slate-900 dark:text-white text-left break-all ${
+                            col.isNumeric ? 'font-mono-nums' : ''
+                          }`}
+                        >
+                          {val || '—'}
+                        </span>
+                        {canCopy && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyText(col.key, val)}
+                            title="نسخ"
+                            className="p-1 rounded text-slate-400 hover:text-amber-600 shrink-0"
+                          >
+                            {copiedField === col.key ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
+                      </dd>
+                    </div>
+                  );
+                })}
               </dl>
             </div>
 
